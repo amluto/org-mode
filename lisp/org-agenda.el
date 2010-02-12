@@ -532,24 +532,38 @@ See also the variable `org-agenda-tags-todo-honor-ignore-options'."
   :type 'boolean)
 
 (defcustom org-agenda-todo-ignore-scheduled nil
-  "Non-nil means don't show scheduled entries in the global todo list.
+  "past means don't show entries scheduled today or in the past in the global todo list.
+
+future means don't show entries scheduled in the future in the global todo list. The idea behind this is that by scheduling it, you don't want to think about it until the scheduled date.
+
+t means don't show any scheduled entries in the global todo list.
 The idea behind this is that by scheduling it, you have already taken care
 of this item.
 See also `org-agenda-todo-ignore-with-date'.
 See also the variable `org-agenda-tags-todo-honor-ignore-options'."
   :group 'org-agenda-skip
   :group 'org-agenda-todo-list
-  :type 'boolean)
+  :type '(choice
+	  (const :tag "Ignore future-scheduled todos" future)
+	  (const :tag "Ignore past- or present-scheduled todos" past)
+	  (const :tag "Ignore all scheduled todos" t)
+	  (const :tag "Show scheduled todos" nil)))
 
 (defcustom org-agenda-todo-ignore-deadlines nil
-  "Non-nil means don't show near deadline entries in the global todo list.
-A deadline is near when it is closer than `org-deadline-warning-days' days.
+  "Non-nil or near means don't show near deadline entries in the global todo list. A deadline is near when it is closer than `org-deadline-warning-days' days.
 The idea behind this is that such items will appear in the agenda anyway.
+
+far means don't show far deadline entries in the global todo list.  This is useful if you don't want to use the todo list to figure out what to do now.
+
 See also `org-agenda-todo-ignore-with-date'.
 See also the variable `org-agenda-tags-todo-honor-ignore-options'."
   :group 'org-agenda-skip
   :group 'org-agenda-todo-list
-  :type 'boolean)
+  :type '(choice
+	  (const :tag "Ignore near deadlines" near)
+	  (const :tag "Ignore far deadlines" far)
+	  (const :tag "Ignore near deadlines (compatibility)" t)
+	  (const :tag "Show all todos with deadlines" nil)))
 
 (defcustom org-agenda-tags-todo-honor-ignore-options nil
   "Non-nil means honor todo-list ...ignore options also in tags-todo search.
@@ -4075,10 +4089,18 @@ the documentation of `org-diary'."
       (or (and org-agenda-todo-ignore-with-date
 	       (re-search-forward org-ts-regexp end t))
 	  (and org-agenda-todo-ignore-scheduled
-	       (re-search-forward org-scheduled-time-regexp end t))
+	       (re-search-forward org-scheduled-time-regexp end t)
+	       (cond
+		((eq org-agenda-todo-ignore-scheduled 'future)
+		 (> (org-days-to-time (match-string 1)) 0))
+		((eq org-agenda-todo-ignore-scheduled 'past)
+		 (<= (org-days-to-time (match-string 1)) 0))
+		(t)))
 	  (and org-agenda-todo-ignore-deadlines
 	       (re-search-forward org-deadline-time-regexp end t)
-	       (org-deadline-close (match-string 1)))))))
+	       (if (eq org-agenda-todo-ignore-deadlines 'far)
+		   (not (org-deadline-close (match-string 1)))
+		 (org-deadline-close (match-string 1))))))))
 
 (defconst org-agenda-no-heading-message
   "No heading for this item in buffer or region.")
